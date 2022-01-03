@@ -7,8 +7,6 @@
 
 const char* ntpServer = "pool.ntp.org";
 const char * defaultTimezone = "GMT+0BST-1,M3.5.0/01:00:00,M10.5.0/02:00:00";
-//const long  gmtOffset_sec = 0;
-//const int   daylightOffset_sec = 3600;
 
 const int CONFIG_PIN = 27;
 const int SIGNAL_PIN = 32;
@@ -20,10 +18,9 @@ WebServer  server(80); // default IP address: 192.168.4.1
 
 struct EEPROMData{
   byte version;
-  int gmt;
-  int dst;
   char ssid[32];
   char pass[50];
+  char tz[50];
  };
 
 EEPROMData eepromData;
@@ -65,9 +62,8 @@ void setup()
     Serial.println(WiFi.localIP());
 
     //init NTP 
-//    configTime(eepromData.gmt, eepromData.dst, ntpServer);
     configTime(0,0, ntpServer);
-    configTzTime(defaultTimezone, ntpServer);
+    configTzTime(eepromData.tz, ntpServer);
     printLocalTime();
 
     //  //disconnect WiFi as it's no longer needed
@@ -101,8 +97,7 @@ void webpage()
     body += "<form action='edit' method='post'>";
     body += "<p><label for='ssid'> SSID: </label> <input name='ssid' type='text' size = '32' value='"; body+=eepromData.ssid; body+="' /></p>";
     body += "<p><label for='pass'> Password: </label><input name='pass' type='password' size = '32' value='"; body+=eepromData.pass; body+="' /></p>";
-    body += "<p><label for='gmt'>GMT offset:</label> <input name='gmt' type='numeric' value='"; body+=eepromData.gmt; body+="' /></p>";
-    body += "<p><label for='dst'>DST offset:</label> <input name='dst' type='numeric' value='"; body+=eepromData.dst; body+="' /></p>";
+    body += "<p><label for='tz'> Timezone: </label> <input name='tz' type='text' size = '50' value='"; body+=eepromData.tz; body+="' /></p>";
     body += "<p><button type='submit'>Update</button></p>";
     body += "</body></html>";
     
@@ -124,16 +119,10 @@ void response()
     server.arg("pass").toCharArray(eepromData.pass, 50);   
     needSave = true;
   } 
-   
-  if(server.hasArg("gmt") && server.arg("gmt").length()>0  && server.arg("gmt").toInt() != eepromData.gmt)
-  { 
-    eepromData.gmt = server.arg("gmt").toInt();    
-    needSave = true;
-  } 
 
-  if(server.hasArg("dst") && server.arg("dst").length()>0  && server.arg("dst").toInt() != eepromData.dst)
+  if(server.hasArg("tz") && server.arg("tz").length()>0 && server.arg("tz").length()< 50 && server.arg("tz") != eepromData.tz)
   { 
-    eepromData.dst = server.arg("dst").toInt();    
+    server.arg("tz").toCharArray(eepromData.tz, 50);  
     needSave = true;
   } 
 

@@ -48,13 +48,11 @@ namespace Frame
     data[8] = B11111100; // constant sync bytes
     data[9] = B10111111;
        
-    /* 1 tick take 1/(80MHZ/80) = 1us so we set divider 80 and count up */
-    timer = timerBegin(0, isEbu ? 80 : 7, true);  
-    /* Attach onTimer function to our timer */
+    // prescale from 80MHz
+    // 80 / 80 * 250 = 250uS for EBU (25fps)
+    // 7 / 80 * 2381 = 208.33uS for SMPTE (30 fps)
+    timer = timerBegin(0, isEbu ? 80 : 7, true);    
     timerAttachInterrupt(timer, &onTimer, true); 
-    /* Set alarm to call onTimer function every second 1 tick is 1us
-    => 1 second is 1000000us */
-    /* Repeat the alarm (third parameter) */
     timerAlarmWrite(timer, isEbu ? 250 : 2381, true);
   
     /* Start an alarm */
