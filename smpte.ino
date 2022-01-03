@@ -6,6 +6,7 @@
 #include "frame.h"
 
 const char* ntpServer = "pool.ntp.org";
+const char * defaultTimezone = "GMT+0BST-1,M3.5.0/01:00:00,M10.5.0/02:00:00";
 //const long  gmtOffset_sec = 0;
 //const int   daylightOffset_sec = 3600;
 
@@ -64,7 +65,9 @@ void setup()
     Serial.println(WiFi.localIP());
 
     //init NTP 
-    configTime(eepromData.gmt, eepromData.dst, ntpServer);
+//    configTime(eepromData.gmt, eepromData.dst, ntpServer);
+    configTime(0,0, ntpServer);
+    configTzTime(defaultTimezone, ntpServer);
     printLocalTime();
 
     //  //disconnect WiFi as it's no longer needed
