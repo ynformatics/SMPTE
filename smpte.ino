@@ -8,9 +8,9 @@
 const char* ntpServer = "pool.ntp.org";
 const char * defaultTimezone = "GMT+0BST-1,M3.5.0/01:00:00,M10.5.0/02:00:00";
 
-const int CONFIG_PIN = 27;
-const int SIGNAL_PIN = 32;
-const int EBU_PIN = 33;
+const int CONFIG_PIN = 27; // Pull LOW on boot to enter setup mode
+const int SIGNAL_PIN = 32; // TimeCode will be output on this pin
+const int EBU_PIN = 33;    // Pull LOW for SMPTE
 bool normalBoot = false;
 bool ebu = true;
 
