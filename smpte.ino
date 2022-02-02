@@ -42,7 +42,7 @@ void setup()
   pinMode(EBU_PIN, INPUT_PULLUP);
   Serial.begin(115200);
 
-  Load();
+  LoadEEProm();
 
   normalBoot = (digitalRead(CONFIG_PIN) == HIGH);
   ebu = (digitalRead(EBU_PIN) == HIGH);
@@ -89,6 +89,12 @@ void loop()
 {
   if(!normalBoot)
     server.handleClient();
+
+  struct tm timeinfo;
+  if(getLocalTime(&timeinfo))
+  {
+    Frame::setTime(&timeinfo);
+  }
 }
 
 void webpage() 
@@ -127,12 +133,12 @@ void response()
   } 
 
   if(needSave)
-    Save();
+    SaveEEProm();
     
   webpage();
 }
 
-void Save()
+void SaveEEProm()
 {
   EEPROM.begin(sizeof(eepromData));
   EEPROM.put(0, eepromData);
@@ -140,7 +146,7 @@ void Save()
   EEPROM.end();
 }
 
-void Load()
+void LoadEEProm()
 {
   EEPROM.begin(sizeof(eepromData));
   EEPROM.get(0, eepromData);

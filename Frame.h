@@ -34,11 +34,11 @@ namespace Frame
   void begin (const byte pin, bool ebu);
   void write (const byte data);
 
-  void loadFrameData();
   void updateFrameCount(byte frame);
   void updateParity();
   byte parity(byte v);
-  
+  void updateTime();
+  void setTime(struct tm * timeinfo);
   void IRAM_ATTR onTimer(); 
 } 
 

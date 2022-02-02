@@ -30,8 +30,11 @@ namespace Frame
   byte frame;
   bool isEbu;
 
-/* create a hardware timer */
+  struct tm latestTime;
+
   hw_timer_t * timer = NULL;
+
+  portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
    
   void begin (const byte pin, bool ebu)
   { 
@@ -40,14 +43,23 @@ namespace Frame
     
     digitalWrite (sendPin, HIGH);
     pinMode (sendPin, OUTPUT);
-    
-    bitsToGo = 0;    // force data load
-    currentByte = 9; 
-    frame = 24;
-    
+        
     data[8] = B11111100; // constant sync bytes
     data[9] = B10111111;
-       
+
+    struct tm timeinfo;
+    if(getLocalTime(&timeinfo))
+    {
+      setTime(&timeinfo);
+    }
+    
+    bitsToGo = 8;    
+    currentByte = 0; 
+    frame = 0;
+    updateTime();
+    updateFrameCount(frame); 
+    datum = data[currentByte];
+    
     // prescale from 80MHz
     // 80 / 80 * 250 = 250uS for EBU (25fps)
     // 7 / 80 * 2381 = 208.33uS for SMPTE (30 fps)
@@ -61,31 +73,7 @@ namespace Frame
   
   
   void IRAM_ATTR onTimer()
-  {      
-    // if we have no more bits to send, queue up the next byte 
-    if (bitsToGo == 0)
-    {
-      if(currentByte == 9)
-      {      
-         currentByte = -1;
-    
-         if(frame == (isEbu ? 24 : 29))
-         {
-            frame = 0;
-            loadFrameData(); 
-         }
-         else
-         {
-            frame++;
-            updateFrameCount(frame); 
-         }
-      }  
-      currentByte++;
-      datum = data[currentByte];        
-
-      bitsToGo = 8;
-    } 
-    
+  {            
     // second pulse is the right way around
     if (sentFirst)
     {
@@ -100,51 +88,75 @@ namespace Frame
       sentFirst = false;
      
       bitsToGo--;  // one less bit to send
-      return;
+      
+      // if we have no more bits to send, queue up the next byte 
+      if (bitsToGo == 0)
+      {
+        if(currentByte == 9) // sent all bytes for current frame?
+        {      
+           currentByte = 0;
+  
+           if(frame == (isEbu ? 24 : 29)) // sent all frames for current time?
+           {
+              frame = 0;  
+              updateTime();
+           }   
+           else
+              frame++;
+                 
+           updateFrameCount(frame);            
+        }  
+        else
+           currentByte++;
+        
+        datum = data[currentByte];        
+  
+        bitsToGo = 8;
+      } 
     }  
-  
-    // get low-order bit
-    currentBit = datum & 1;
-    // ready for next time
-    datum = datum >> 1;
-   
-    // first halfbit is opposite
-    previousLevel = !previousLevel;
-    digitalWrite (sendPin, previousLevel);        
-  
-    // next time we sent other way around
-    sentFirst = true;      
+    else
+    {
+      // get low-order bit
+      currentBit = datum & 1;
+      // ready for next time
+      datum = datum >> 1;
+     
+      // first halfbit is opposite
+      previousLevel = !previousLevel;
+      digitalWrite (sendPin, previousLevel);        
+    
+      // next time we send other way around
+      sentFirst = true;      
+    }
+    
   } 
 
-  void loadFrameData()
+  void setTime(struct tm * timeinfo)
   {
-    struct tm timeinfo;
-    if(!getLocalTime(&timeinfo))
-    {
-      Serial.println("Failed to obtain time");
-      return;
-    }
+    portENTER_CRITICAL(&timerMux);
+    latestTime = *timeinfo;
+    portEXIT_CRITICAL(&timerMux);
+  }
   
-    byte frames = 0;
-    byte secs = timeinfo.tm_sec;
-    byte mins = timeinfo.tm_min;
-    byte hours = timeinfo.tm_hour;
+  void updateTime()
+  {
+    portENTER_CRITICAL_ISR(&timerMux);
+    byte secs = latestTime.tm_sec;
+    byte mins = latestTime.tm_min;
+    byte hours = latestTime.tm_hour;
+    portEXIT_CRITICAL_ISR(&timerMux);
     
-    data[0] = frames %10;
-    data[1] = frames / 10;
     data[2] = secs % 10;
     data[3] = secs / 10;
     data[4] = mins % 10;
     data[5] = mins / 10;
     data[6] = hours % 10;
     data[7] = hours / 10; 
-  
-    updateParity();
   }
   
   void updateFrameCount(byte frame)
   { 
-    data[0] = frame %10;
+    data[0] = frame % 10;
     data[1] = frame / 10;
   
     updateParity();
@@ -174,7 +186,6 @@ namespace Frame
     
     return (0x6996 >> v) & 1;
   }
-
 }
 
   
